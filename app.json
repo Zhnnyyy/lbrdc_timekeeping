@@ -18,12 +18,21 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.lbrdc.timekeeping"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": ["expo-router"],
+    "extra": {
+      "_datetime": "http://192.168.254.131:3002/api/date_time.php",
+      "eas": {
+        "projectId": "e437cfdf-59cc-4335-b90f-1f97bfade627"
+      }
+    },
+    "plugins": [
+      "expo-router"
+    ],
     "scheme": "lbrdc.timekeeping.app"
   }
 }

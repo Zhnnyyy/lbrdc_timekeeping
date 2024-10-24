@@ -5,7 +5,7 @@ const GButton = (props) => {
   return (
     <TouchableOpacity
       style={[styles.actionButton, { backgroundColor: props.color }]}
-      onPress={() => handleAction(title)}
+      onPress={props.handleAction}
     >
       <Ionicons name={props.icon} size={32} color={props.textColor} />
       <Text style={[styles.actionButtonText, { color: props.textColor }]}>

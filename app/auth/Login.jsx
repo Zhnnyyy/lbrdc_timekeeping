@@ -18,6 +18,8 @@ import InputText from "../components/InputText";
 import Button from "../components/Button";
 import { useRouter } from "expo-router";
 import * as Location from "expo-location";
+import * as Network from "expo-network";
+import LocationError from "../components/LocationError";
 const logo = require("../assets/lbrdc-logo-rnd.webp");
 const { width, height } = Dimensions.get("window");
 
@@ -25,60 +27,98 @@ const login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [loc_status, setLocStatus] = useState(true);
   const router = useRouter();
 
-  const login = async () => {
-    const loc_status = await Location.requestForegroundPermissionsAsync();
-    if (loc_status.status == "granted") {
-      router.replace("/dashboard/dashboard");
-    } else {
-      login();
-    }
-  };
-  useEffect(() => {
-    const backhandler = BackHandler.addEventListener(
-      "hardwareBackPress",
-      (e) => {
-        Alert.alert("Heyy", "Are you sure you want to exit?", [
-          { text: "Cancel", onPress: () => null, style: "cancel" },
-          { text: "Yes", onPress: () => BackHandler.exitApp() },
-        ]);
-        return true;
-      }
-    );
-    return () => backhandler.remove();
-  }, []);
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle={"dark-content"} />
-      <LinearGradient colors={["#4CAF50", "#2E7D32"]} style={styles.container}>
-        <View style={styles.logoContainer}>
-          <Image style={styles.img} source={logo} />
-          <Text style={styles.appTitle}>LBRDC Timekeeper</Text>
-        </View>
-        <View style={styles.card}>
-          <Text style={styles.wctxt}>Welcome Back</Text>
-          <InputText />
-          <InputText />
+  // useEffect(() => {
+  //   const checkNetwork = async () => {
+  //     try {
+  //       const networkState = await Network.getNetworkStateAsync();
+  //       if (!networkState.isInternetReachable) {
+  //         Alert.alert("Opss", "You are not connected to internet", [
+  //           { text: "retry", onPress: () => checkNetwork(), style: "default" },
+  //         ]);
+  //       }
+  //     } catch (error) {
+  //       alert(error);
+  //     }
+  //   };
 
-          <View style={styles.rememberForgotContainer}>
-            <View style={styles.rememberMeContainer}>
-              <Switch
-                value={rememberMe}
-                onValueChange={setRememberMe}
-                trackColor={{ false: "#767577", true: "#81b0ff" }}
-                thumbColor={rememberMe ? "#4CAF50" : "#f4f3f4"}
-              />
-              <Text style={styles.rememberMeText}>Remember Me</Text>
+  //   checkNetwork();
+  // }, []);
+
+  useEffect(() => {
+    const checkLocation = async () => {
+      const loc_status = await Location.requestForegroundPermissionsAsync();
+      const is_loc_enabled = await Location.hasServicesEnabledAsync();
+      !loc_status.granted ? checkLocation() : null;
+      !is_loc_enabled ? setLocStatus(false) : setLocStatus(true);
+    };
+
+    const timer = setInterval(() => {
+      checkLocation();
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const login = async () => {
+    router.navigate("/dashboard/dashboard");
+  };
+  // useEffect(() => {
+  //   const backhandler = BackHandler.addEventListener(
+  //     "hardwareBackPress",
+  //     (e) => {
+  //       Alert.alert("Heyy", "Are you sure you want to exit?", [
+  //         { text: "Cancel", onPress: () => null, style: "cancel" },
+  //         { text: "Yes", onPress: () => BackHandler.exitApp() },
+  //       ]);
+  //       return true;
+  //     }
+  //   );
+  //   return () => backhandler.remove();
+  // }, []);
+  return (
+    <>
+      {!loc_status ? (
+        <LocationError />
+      ) : (
+        <SafeAreaView style={styles.safeArea}>
+          <StatusBar barStyle={"dark-content"} />
+          <LinearGradient
+            colors={["#4CAF50", "#2E7D32"]}
+            style={styles.container}
+          >
+            <View style={styles.logoContainer}>
+              <Image style={styles.img} source={logo} />
+              <Text style={styles.appTitle}>LBRDC Timekeeper</Text>
             </View>
-            <TouchableOpacity>
-              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-            </TouchableOpacity>
-          </View>
-          <Button onClick={login} />
-        </View>
-      </LinearGradient>
-    </SafeAreaView>
+            <View style={styles.card}>
+              <Text style={styles.wctxt}>Welcome Back</Text>
+              <InputText />
+              <InputText />
+
+              <View style={styles.rememberForgotContainer}>
+                <View style={styles.rememberMeContainer}>
+                  <Switch
+                    value={rememberMe}
+                    onValueChange={setRememberMe}
+                    trackColor={{ false: "#767577", true: "#81b0ff" }}
+                    thumbColor={rememberMe ? "#4CAF50" : "#f4f3f4"}
+                  />
+                  <Text style={styles.rememberMeText}>Remember Me</Text>
+                </View>
+                <TouchableOpacity>
+                  <Text style={styles.forgotPasswordText}>
+                    Forgot Password?
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <Button onClick={login} />
+            </View>
+          </LinearGradient>
+        </SafeAreaView>
+      )}
+    </>
   );
 };
 

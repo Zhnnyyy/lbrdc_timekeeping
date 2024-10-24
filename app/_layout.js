@@ -11,7 +11,7 @@ const Layout = ({ children }) => {
       router.push("/auth/Login");
     }
   }, [pathName, router]);
-  console.log(pathName);
+  // console.log(pathName);
 
   return (
     <View style={{ flex: 1 }}>

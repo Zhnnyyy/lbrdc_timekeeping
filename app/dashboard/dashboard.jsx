@@ -9,53 +9,116 @@ import {
   ScrollView,
   BackHandler,
   Alert,
+  RefreshControl,
 } from "react-native";
 import React, { useState, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import GButton from "../components/GButton";
 import * as Location from "expo-location";
+import * as turf from "@turf/turf";
+import * as Network from "expo-network";
+import worldTimestamp from "world-timestamp";
+import { router } from "expo-router";
+import Constants from "expo-constants";
+// import moment from "moment-timezone";
 const dashboard = () => {
-  const [currentDateTime, setCurrentDateTime] = useState(new Date());
+  const [currentDateTime, setCurrentDateTime] = useState("Loading time...");
   const [location, setLocation] = useState("Loading location...");
   const [lastAction, setLastAction] = useState("No recent action");
   const [status, setStatus] = useState("Checked Out");
+  const [isConnected, setIsConnected] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const { _datetime } = Constants.expoConfig?.extra || {};
+
+  //load connection
+  useEffect(() => {
+    const checkNetwork = async () => {
+      try {
+        const networkState = await Network.getNetworkStateAsync();
+        if (networkState.isConnected) {
+          const test = await fetch("https://www.google.com");
+          test.ok ? setIsConnected(true) : setIsConnected(false);
+        } else {
+          setIsConnected(false);
+        }
+      } catch (err) {
+        setIsConnected(false);
+      }
+    };
+    checkNetwork();
+  }, []);
+
+  //load date and time
+  useEffect(() => {
+    setInterval(() => {
+      loadDatatime();
+    }, 1000);
+  }, []);
 
   //load location
   useEffect(() => {
-    const loadLoc = async () => {
-      const coordinates = await Location.getCurrentPositionAsync({});
-      const latitude = coordinates.coords.latitude;
-      const longitude = coordinates.coords.longitude;
-
-      setLocation(
-        `${coordinates.coords.latitude} --- ${coordinates.coords.longitude}`
-      );
-    };
     loadLoc();
   }, []);
 
-  //date time and location effect
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentDateTime(new Date());
-    }, 1000);
+  const isValid = () => {
+    const userLocation = [longitude, latitude];
+    const geofenceCenter = [120.99674507047705, 14.741638157279192];
+    const geofenceRadius = 6.398233881168904;
+    const distance = turf.distance(
+      turf.point(userLocation),
+      turf.point(geofenceCenter),
+      { units: "meters" }
+    );
 
-    return () => clearInterval(timer);
+    if (distance <= geofenceRadius) {
+      console.log("You are inside the geofence.");
+    } else {
+      console.log("You are outside the geofence.");
+    }
+  };
+
+  const loadLoc = async () => {
+    const coordinates = await Location.getCurrentPositionAsync({});
+    const latitude = coordinates.coords.latitude;
+    const longitude = coordinates.coords.longitude;
+    const currentLocation = await Location.reverseGeocodeAsync({
+      latitude,
+      longitude,
+    });
+
+    setLocation(`${currentLocation[0].formattedAddress}`);
+  };
+  const loadDatatime = async () => {
+    const request = await fetch(_datetime);
+    const result = await request.json();
+    setCurrentDateTime(result.datetime);
+  };
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    loadDatatime();
+    loadLoc();
+    setRefreshing(false);
   }, []);
 
-    // useEffect(() => {
-    //   const backhandler = BackHandler.addEventListener(
-    //     "hardwareBackPress",
-    //     (e) => {
-    //       Alert.alert("Heyy", "Are you sure you want to exit?", [
-    //         { text: "Cancel", onPress: () => null, style: "cancel" },
-    //         { text: "Yes", onPress: () => BackHandler.exitApp() },
-    //       ]);
-    //       return true;
-    //     }
-    //   );
-    //   return () => backhandler.remove();
-    // }, []);
+  const handleCheckIn = async () => {
+    console.log("clicked");
+    alert(_datetime);
+  };
+
+  // useEffect(() => {
+  //   const backhandler = BackHandler.addEventListener(
+  //     "hardwareBackPress",
+  //     (e) => {
+  //       Alert.alert("Heyy", "Are you sure you want to exit?", [
+  //         { text: "Cancel", onPress: () => null, style: "cancel" },
+  //         { text: "Yes", onPress: () => BackHandler.exitApp() },
+  //       ]);
+  //       return true;
+  //     }
+  //   );
+  //   return () => backhandler.remove();
+  // }, []);
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -63,20 +126,40 @@ const dashboard = () => {
           <Text style={styles.userName}>Ed Emmanuel Perpetua</Text>
           <Text style={styles.employeeId}>ID: 0032424</Text>
         </View>
-        <TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => {
+            router.back();
+          }}
+        >
           <Ionicons name="log-out-outline" size={28} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: 16 }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 16 }}
+        bounces
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Current Status</Text>
           <Text style={styles.status}>{status}</Text>
-          <Text style={styles.dateTime}>
-            {currentDateTime.toLocaleDateString()}{" "}
-            {currentDateTime.toLocaleTimeString()}
+          <Text style={styles.dateTime}>{currentDateTime}</Text>
+          <Text
+            style={
+              (styles.location,
+              [
+                {
+                  color: isConnected ? "#363636" : "red",
+                  fontWeight: isConnected ? "regular" : "bold",
+                },
+              ])
+            }
+          >
+            {isConnected ? location : "Offline mode"}
           </Text>
-          <Text style={styles.location}>{location}</Text>
+          <Text>{isConnected}</Text>
         </View>
 
         <Text style={styles.sectionTitle}>Time Tracking</Text>
@@ -86,6 +169,7 @@ const dashboard = () => {
             icon="log-in-outline"
             color="#006341"
             textColor="#FFFFFF"
+            handleAction={handleCheckIn}
           />
           <GButton
             title="Check Out"
@@ -192,8 +276,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   location: {
-    fontSize: 16,
-    color: "#666666",
+    fontSize: 14,
   },
   sectionTitle: {
     fontSize: 22,
